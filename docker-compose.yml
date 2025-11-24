@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: hosting-backend
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /app/node_modules  # Volumen anónimo para preservar node_modules
+      - ./backend:/app
+      - repos:/tmp/repos
+      - nginx-configs:/etc/nginx/conf.d/projects
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-key}
+      - ROBLE_AUTH_BASE_URL=${ROBLE_AUTH_BASE_URL:-https://roble-api.openlab.uninorte.edu.co/auth}
+      - ROBLE_DB_NAME=${ROBLE_DB_NAME}
+    networks:
+      - hosting-network
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: hosting-frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost/api
+    networks:
+      - hosting-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    build: ./nginx
+    container_name: hosting-nginx
+    volumes:
+      - nginx-configs:/etc/nginx/conf.d/projects
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "80:80"
+    networks:
+      - hosting-network
+    restart: unless-stopped
+
+volumes:
+  repos:
+  nginx-configs:
+
+networks:
+  hosting-network:
+    driver: bridge
+
