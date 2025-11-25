@@ -13,7 +13,40 @@ router.use(authenticateToken);
 router.get('/', async (req, res, next) => {
   try {
     const projects = await projectService.getUserProjects(req.user.username);
-    res.json(projects);
+    
+    // Sincronizar estado con Docker
+    const projectsWithStatus = await Promise.all(projects.map(async (project) => {
+      if (project.containerId) {
+        try {
+          const statusInfo = await dockerService.getContainerStatus(project.containerId);
+          // Actualizar objeto proyecto (y opcionalmente en servicio)
+          project.container = { ...project.container, ...statusInfo };
+          project.status = statusInfo.status; // 'running', 'exited', etc.
+          
+          // Actualizar en memoria para futuras referencias rápidas
+          await projectService.updateProject(project.id, { 
+            status: statusInfo.status,
+            container: project.container 
+          }, req.user.username);
+          
+        } catch (error) {
+          // Si el contenedor no se encuentra o hay error, marcar como detenido o error
+          console.warn(`No se pudo obtener estado para contenedor ${project.containerId}:`, error.message);
+          project.status = 'stopped'; // Asumir detenido si no se encuentra
+          if (error.statusCode === 404) {
+             project.status = 'terminated'; // O 'missing'
+             project.containerId = null; // Limpiar referencia si no existe
+             await projectService.updateProject(project.id, { 
+                status: 'terminated',
+                containerId: null
+             }, req.user.username);
+          }
+        }
+      }
+      return project;
+    }));
+
+    res.json(projectsWithStatus);
   } catch (error) {
     next(error);
   }
