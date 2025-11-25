@@ -4,11 +4,18 @@ import axios from 'axios';
 import AuthContext from '../context/AuthContext';
 import './ProjectForm.css';
 
+const TEMPLATE_URLS = {
+  static: 'https://github.com/veronicaospina/static-template',
+  react: 'https://github.com/veronicaospina/react-template',
+  flask: 'https://github.com/veronicaospina/flask-template'
+};
+
 function ProjectForm() {
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
     githubUrl: '',
-    template: 'static'
+    template: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,6 +27,12 @@ function ProjectForm() {
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleTemplateSelect = (template) => {
+    setFormData({ ...formData, template });
+    window.open(TEMPLATE_URLS[template], '_blank');
+    setStep(2);
   };
 
   const handleSubmit = async (e) => {
@@ -46,10 +59,51 @@ function ProjectForm() {
     }
   };
 
+  if (step === 1) {
+    return (
+      <div className="project-form-container">
+        <div className="card">
+          <h2>Selecciona un Template</h2>
+          <p style={{ marginBottom: '20px', color: '#666' }}>
+            Elige una plantilla para comenzar tu proyecto. Serás redirigido a GitHub para usarla.
+          </p>
+          
+          <div className="template-options">
+            <div className="template-card" onClick={() => handleTemplateSelect('static')}>
+              <h3>Sitio Estático</h3>
+              <p>HTML, CSS y JavaScript</p>
+            </div>
+            <div className="template-card" onClick={() => handleTemplateSelect('react')}>
+              <h3>React</h3>
+              <p>Aplicación React con Dockerfile</p>
+            </div>
+            <div className="template-card" onClick={() => handleTemplateSelect('flask')}>
+              <h3>Flask</h3>
+              <p>Aplicación Python Flask</p>
+            </div>
+          </div>
+          
+          <div className="form-actions">
+             <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="btn btn-secondary"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="project-form-container">
       <div className="card">
-        <h2>Crear Nuevo Proyecto</h2>
+        <h2>Detalles del Proyecto</h2>
+        <p style={{ marginBottom: '20px' }}>
+          Template seleccionado: <strong>{formData.template}</strong>
+        </p>
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -77,23 +131,7 @@ function ProjectForm() {
               required
               placeholder="https://github.com/usuario/repositorio"
             />
-            <small>Asegúrate de que el repositorio sea público o tengas acceso</small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="template">Template *</label>
-            <select
-              id="template"
-              name="template"
-              value={formData.template}
-              onChange={handleChange}
-              required
-            >
-              <option value="static">Sitio Estático (HTML + CSS + JS)</option>
-              <option value="react">Aplicación React</option>
-              <option value="flask">Aplicación Flask (Python)</option>
-            </select>
-            <small>Selecciona el tipo de aplicación que deseas desplegar</small>
+            <small>Ingresa la URL del repositorio que creaste a partir del template</small>
           </div>
 
           {error && <div className="error">{error}</div>}
@@ -101,10 +139,10 @@ function ProjectForm() {
           <div className="form-actions">
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => setStep(1)}
               className="btn btn-secondary"
             >
-              Cancelar
+              Atrás
             </button>
             <button
               type="submit"

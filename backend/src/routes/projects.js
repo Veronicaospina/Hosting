@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const { authenticateToken } = require('../middleware/auth');
 const { projectCreationLimiter } = require('../middleware/rateLimiter');
 const projectService = require('../services/projectService');
@@ -47,6 +48,21 @@ router.post('/', projectCreationLimiter, async (req, res, next) => {
     if (!validTemplates.includes(template)) {
       return res.status(400).json({ 
         error: 'Template inválido. Debe ser: static, react o flask' 
+      });
+    }
+
+    // Validar URL de GitHub
+    if (!githubUrl.startsWith('https://github.com/')) {
+      return res.status(400).json({
+        error: 'La URL debe ser de un repositorio de GitHub (https://github.com/...)'
+      });
+    }
+
+    try {
+      await axios.head(githubUrl);
+    } catch (error) {
+      return res.status(400).json({
+        error: 'El repositorio de GitHub no existe o no es público. Por favor verifica la URL.'
       });
     }
 
@@ -110,6 +126,14 @@ router.delete('/:id', async (req, res, next) => {
       }
     }
 
+    // Eliminar configuración de Nginx
+    const subdomain = `${project.name}.${project.username}.localhost`;
+    try {
+      await dockerService.removeNginxConfig(subdomain);
+    } catch (nginxError) {
+      console.error('Error eliminando configuración de Nginx:', nginxError);
+    }
+
     await projectService.deleteProject(req.params.id, req.user.username);
     res.json({ message: 'Proyecto eliminado correctamente' });
   } catch (error) {
@@ -130,11 +154,11 @@ router.post('/:id/restart', async (req, res, next) => {
       return res.status(400).json({ error: 'El proyecto no tiene contenedor asociado' });
     }
 
-    // Asegurar que el contenedor esté corriendo
-    await dockerService.ensureContainerRunning(project.containerId);
+    // Reiniciar el contenedor
+    await dockerService.restartContainer(project.containerId);
     const status = await dockerService.getContainerStatus(project.containerId);
 
-    res.json({ message: 'Contenedor verificado/reiniciado', status });
+    res.json({ message: 'Contenedor reiniciado correctamente', status });
   } catch (error) {
     next(error);
   }

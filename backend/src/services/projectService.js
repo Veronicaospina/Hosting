@@ -41,12 +41,13 @@ async function getUserProjects(username) {
 
 /**
  * Obtiene un proyecto por ID
- * @param {number} projectId - ID del proyecto
+ * @param {number|string} projectId - ID del proyecto
  * @param {string} username - Nombre de usuario (para verificación)
  * @returns {Promise<Object|null>} Proyecto o null
  */
 async function getProject(projectId, username) {
-  const project = projects.get(projectId);
+  const id = Number(projectId);
+  const project = projects.get(id);
   if (project && project.username === username) {
     return project;
   }
@@ -55,13 +56,14 @@ async function getProject(projectId, username) {
 
 /**
  * Actualiza un proyecto
- * @param {number} projectId - ID del proyecto
+ * @param {number|string} projectId - ID del proyecto
  * @param {Object} updates - Campos a actualizar
  * @param {string} username - Nombre de usuario (para verificación)
  * @returns {Promise<Object|null>} Proyecto actualizado o null
  */
 async function updateProject(projectId, updates, username = null) {
-  const project = projects.get(projectId);
+  const id = Number(projectId);
+  const project = projects.get(id);
   
   if (!project) {
     return null;
@@ -72,24 +74,25 @@ async function updateProject(projectId, updates, username = null) {
   }
 
   Object.assign(project, updates, { updatedAt: new Date().toISOString() });
-  projects.set(projectId, project);
+  projects.set(id, project);
   return project;
 }
 
 /**
  * Elimina un proyecto
- * @param {number} projectId - ID del proyecto
+ * @param {number|string} projectId - ID del proyecto
  * @param {string} username - Nombre de usuario (para verificación)
  * @returns {Promise<boolean>} true si se eliminó, false si no existe
  */
 async function deleteProject(projectId, username) {
-  const project = projects.get(projectId);
+  const id = Number(projectId);
+  const project = projects.get(id);
   
   if (!project || project.username !== username) {
     return false;
   }
 
-  projects.delete(projectId);
+  projects.delete(id);
   return true;
 }
 

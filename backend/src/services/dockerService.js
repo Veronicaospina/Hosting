@@ -1,6 +1,8 @@
 const Docker = require('dockerode');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const fs = require('fs').promises;
+const path = require('path');
 const execAsync = promisify(exec);
 
 const docker = new Docker({ socketPath: '/var/run/docker.sock' });
@@ -151,11 +153,55 @@ async function ensureContainerRunning(containerId) {
 async function removeContainer(containerId) {
   try {
     const container = docker.getContainer(containerId);
-    await container.stop();
-    await container.remove();
+    
+    try {
+      await container.stop();
+    } catch (e) {
+      // Ignorar si ya está detenido o no existe
+    }
+    
+    await container.remove({ force: true });
     console.log(`Contenedor ${containerId} eliminado`);
+    
+    // Limpiar estado
+    containerActivity.delete(containerId);
+    for (const [projectId, info] of activeContainers.entries()) {
+      if (info.id === containerId) {
+        activeContainers.delete(projectId);
+        break;
+      }
+    }
   } catch (error) {
     console.error('Error eliminando contenedor:', error);
+    // No lanzar error si el contenedor no existe, para permitir borrar el proyecto
+    if (error.statusCode === 404) {
+      // Limpiar estado si no existe
+      containerActivity.delete(containerId);
+      for (const [projectId, info] of activeContainers.entries()) {
+        if (info.id === containerId) {
+          activeContainers.delete(projectId);
+          break;
+        }
+      }
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Reinicia un contenedor
+ * @param {string} containerId - ID del contenedor
+ */
+async function restartContainer(containerId) {
+  try {
+    const container = docker.getContainer(containerId);
+    await container.restart();
+    containerActivity.set(containerId, new Date());
+    console.log(`Contenedor ${containerId} reiniciado`);
+    return { running: true, containerId };
+  } catch (error) {
+    console.error('Error reiniciando contenedor:', error);
     throw error;
   }
 }
@@ -211,6 +257,18 @@ async function shutdownInactiveContainers() {
         }
       } catch (error) {
         console.error(`Error apagando contenedor ${containerId}:`, error);
+        
+        // Si el contenedor no existe, limpiar del registro
+        if (error.statusCode === 404) {
+          console.log(`Eliminando contenedor ${containerId} del registro de actividad (no encontrado)`);
+          containerActivity.delete(containerId);
+          for (const [projectId, info] of activeContainers.entries()) {
+            if (info.id === containerId) {
+              activeContainers.delete(projectId);
+              break;
+            }
+          }
+        }
       }
     }
   }
@@ -300,18 +358,39 @@ async function updateNginxConfig(subdomain, port) {
     }
 }`;
 
-  const configPath = `/etc/nginx/conf.d/projects/${subdomain}.conf`;
-  const escapedConfig = config.replace(/'/g, "'\\''").replace(/\n/g, '\\n');
+  const configDir = '/etc/nginx/conf.d/projects';
+  const configPath = path.join(configDir, `${subdomain}.conf`);
   
-  await execAsync(`mkdir -p /etc/nginx/conf.d/projects`);
-  await execAsync(`echo '${escapedConfig}' > ${configPath}`);
-  
-  // Recargar Nginx
   try {
+    await fs.mkdir(configDir, { recursive: true });
+    await fs.writeFile(configPath, config);
+    console.log(`Configuración de Nginx escrita en ${configPath}`);
+    
+    // Recargar Nginx
     await execAsync('docker exec hosting-nginx nginx -s reload');
     console.log(`Configuración de Nginx actualizada para ${subdomain}`);
   } catch (error) {
-    console.warn('No se pudo recargar Nginx automáticamente:', error.message);
+    console.warn('Error actualizando configuración de Nginx:', error.message);
+  }
+}
+
+/**
+ * Elimina la configuración de Nginx para un subdominio
+ * @param {string} subdomain - Subdominio
+ */
+async function removeNginxConfig(subdomain) {
+  const configPath = path.join('/etc/nginx/conf.d/projects', `${subdomain}.conf`);
+  
+  try {
+    await fs.unlink(configPath);
+    console.log(`Configuración de Nginx eliminada: ${configPath}`);
+    
+    // Recargar Nginx
+    await execAsync('docker exec hosting-nginx nginx -s reload');
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      console.warn('Error eliminando configuración de Nginx:', error.message);
+    }
   }
 }
 
@@ -319,11 +398,13 @@ module.exports = {
   createContainer,
   stopContainer,
   startContainer,
+  restartContainer,
   removeContainer,
   getContainerStatus,
   recordActivity,
   shutdownInactiveContainers,
   ensureContainerRunning,
+  removeNginxConfig,
   activeContainers,
   containerActivity
 };

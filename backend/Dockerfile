@@ -7,7 +7,8 @@ RUN apk add --no-cache \
     docker-cli \
     git \
     bash \
-    curl
+    curl \
+    dos2unix
 
 # Copiar archivos de dependencias primero (para aprovechar caché de Docker)
 COPY package*.json ./
@@ -20,7 +21,7 @@ COPY . .
 
 # Copiar y hacer ejecutable el script de entrada
 COPY docker-entrypoint.sh ./
-RUN chmod +x ./docker-entrypoint.sh
+RUN dos2unix docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 # Exponer puerto
 EXPOSE 3000

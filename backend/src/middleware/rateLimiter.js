@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: 10, // máximo 10 requests por ventana
-  message: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde.',
+  message: { error: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -18,8 +18,8 @@ const apiLimiter = rateLimit({
  */
 const projectCreationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora
-  max: 3,
-  message: 'Has alcanzado el límite de creación de proyectos. Intenta más tarde.',
+  max: 20,
+  message: { error: 'Has alcanzado el límite de creación de proyectos. Intenta más tarde.' },
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
