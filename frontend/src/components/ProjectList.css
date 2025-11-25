@@ -78,6 +78,21 @@
   color: white;
 }
 
+.status-restarting {
+  background-color: #ff9800;
+  color: white;
+}
+
+.status-paused {
+  background-color: #6c757d;
+  color: white;
+}
+
+.status-unknown {
+  background-color: #adb5bd;
+  color: #212529;
+}
+
 .project-info {
   margin-bottom: 20px;
 }

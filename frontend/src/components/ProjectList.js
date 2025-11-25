@@ -65,6 +65,80 @@ function ProjectList() {
     }
   };
 
+  const handleStop = async (projectId) => {
+    try {
+      const response = await axios.post(
+        `/api/projects/${projectId}/stop`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      setProjects(projects.map(p => {
+        if (p.id === projectId) {
+          return { ...p, container: { ...p.container, ...response.data.status } };
+        }
+        return p;
+      }));
+    } catch (error) {
+      console.error('Error deteniendo contenedor:', error);
+      alert('Error al detener el contenedor');
+    }
+  };
+
+  const handleStart = async (projectId) => {
+    try {
+      const response = await axios.post(
+        `/api/projects/${projectId}/start`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      setProjects(projects.map(p => {
+        if (p.id === projectId) {
+          return { ...p, container: { ...p.container, ...response.data.status } };
+        }
+        return p;
+      }));
+    } catch (error) {
+      console.error('Error iniciando contenedor:', error);
+      alert('Error al iniciar el contenedor');
+    }
+  };
+
+  const getStatusInfo = (project) => {
+    const raw = project.container?.status || project.status || 'unknown';
+    const s = String(raw).toLowerCase();
+
+    if (s.includes('running')) {
+      return { normalized: 'running', label: 'Running' };
+    }
+    if (s.includes('exited') || s.includes('stopped')) {
+      return { normalized: 'stopped', label: 'Stopped' };
+    }
+    if (s.includes('pending') || s.includes('created')) {
+      return { normalized: 'pending', label: 'Pending' };
+    }
+    if (s.includes('restarting')) {
+      return { normalized: 'restarting', label: 'Restarting' };
+    }
+    if (s.includes('paused')) {
+      return { normalized: 'paused', label: 'Paused' };
+    }
+
+    // Fallback: use the raw value, normalized for classname
+    const normalized = s.replace(/\s+/g, '-');
+    const label = String(raw).charAt(0).toUpperCase() + String(raw).slice(1);
+    return { normalized, label };
+  };
+
   if (loading) {
     return <div className="loading">Cargando proyectos...</div>;
   }
@@ -91,9 +165,14 @@ function ProjectList() {
             <div key={project.id} className="project-card">
               <div className="project-header">
                 <h3>{project.name}</h3>
-                <span className={`status-badge status-${project.status}`}>
-                  {project.status}
-                </span>
+                {(() => {
+                  const { normalized, label } = getStatusInfo(project);
+                  return (
+                    <span className={`status-badge status-${normalized}`}>
+                      {label}
+                    </span>
+                  );
+                })()}
               </div>
               
               <div className="project-info">
@@ -118,12 +197,37 @@ function ProjectList() {
 
               <div className="project-actions">
                 {project.container?.subdomain && (
-                  <button
-                    onClick={() => handleRestart(project.id)}
-                    className="btn btn-secondary btn-sm"
-                  >
-                    Reiniciar
-                  </button>
+                  <>
+                    {(() => {
+                      const { normalized } = getStatusInfo(project);
+                      if (normalized === 'running') {
+                        return (
+                          <button
+                            onClick={() => handleStop(project.id)}
+                            className="btn btn-warning btn-sm"
+                          >
+                            Detener
+                          </button>
+                        );
+                      } else if (normalized === 'stopped') {
+                        return (
+                          <button
+                            onClick={() => handleStart(project.id)}
+                            className="btn btn-success btn-sm"
+                          >
+                            Iniciar
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <button
+                      onClick={() => handleRestart(project.id)}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      Reiniciar
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => handleDelete(project.id)}

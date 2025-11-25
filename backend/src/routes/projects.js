@@ -164,5 +164,49 @@ router.post('/:id/restart', async (req, res, next) => {
   }
 });
 
+// Detener contenedor de un proyecto
+router.post('/:id/stop', async (req, res, next) => {
+  try {
+    const project = await projectService.getProject(req.params.id, req.user.username);
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    if (!project.containerId) {
+      return res.status(400).json({ error: 'El proyecto no tiene contenedor asociado' });
+    }
+
+    await dockerService.stopContainer(project.containerId);
+    const status = await dockerService.getContainerStatus(project.containerId);
+
+    res.json({ message: 'Contenedor detenido correctamente', status });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Iniciar contenedor de un proyecto
+router.post('/:id/start', async (req, res, next) => {
+  try {
+    const project = await projectService.getProject(req.params.id, req.user.username);
+    
+    if (!project) {
+      return res.status(404).json({ error: 'Proyecto no encontrado' });
+    }
+
+    if (!project.containerId) {
+      return res.status(400).json({ error: 'El proyecto no tiene contenedor asociado' });
+    }
+
+    await dockerService.startContainer(project.containerId);
+    const status = await dockerService.getContainerStatus(project.containerId);
+
+    res.json({ message: 'Contenedor iniciado correctamente', status });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 
