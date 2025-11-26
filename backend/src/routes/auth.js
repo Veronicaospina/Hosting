@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { authenticateRoble } = require('../services/robleService');
+const { authenticateRoble, signupDirect } = require('../services/robleService');
 
 // Login con Roble
 router.post('/login', async (req, res, next) => {
@@ -32,6 +32,25 @@ router.post('/login', async (req, res, next) => {
         refreshToken
       }
     });
+  } catch (error) {
+    if (error.response?.data?.message) {
+      return res.status(error.response.status || 500).json({ error: error.response.data.message });
+    }
+    next(error);
+  }
+});
+
+// Registro directo con Roble
+router.post('/signup', async (req, res, next) => {
+  try {
+    const { email, password, name } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Email, contraseña y nombre son requeridos' });
+    }
+
+    const result = await signupDirect(email, password, name);
+    res.json(result);
   } catch (error) {
     if (error.response?.data?.message) {
       return res.status(error.response.status || 500).json({ error: error.response.data.message });

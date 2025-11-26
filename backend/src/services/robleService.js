@@ -52,7 +52,30 @@ async function authenticateRoble(email, password) {
   }
 }
 
+/**
+ * Registra un usuario directamente en Roble Auth sin verificación de correo.
+ * @param {string} email
+ * @param {string} password
+ * @param {string} name
+ * @returns {Promise<object>}
+ */
+async function signupDirect(email, password, name) {
+  try {
+    const baseUrl = getAuthEndpoint();
+    const response = await axios.post(`${baseUrl}/signup-direct`, {
+      email,
+      password,
+      name
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error en registro directo Roble:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
 module.exports = {
-  authenticateRoble
+  authenticateRoble,
+  signupDirect
 };
 

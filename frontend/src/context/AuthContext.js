@@ -52,7 +52,19 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Error en el login'
+        error: error.response?.data?.error || 'Error al iniciar sesión'
+      };
+    }
+  };
+
+  const signup = async (email, password, name) => {
+    try {
+      await axios.post(`${API_URL}/auth/signup`, { email, password, name });
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Error al registrar usuario'
       };
     }
   };
@@ -70,6 +82,7 @@ export function AuthProvider({ children }) {
     token,
     login,
     logout,
+    signup,
     loading
   };
 
