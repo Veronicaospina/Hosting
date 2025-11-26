@@ -1,0 +1,17 @@
+# Default behavior
+* text=auto
+
+# Force LF for shell scripts (Critical for Docker/Linux)
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Force LF for Docker related files
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+
+# Force LF for code files (Recommended for consistency)
+*.js text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
